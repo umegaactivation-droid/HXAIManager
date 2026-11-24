@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#080b13" />
+  <title>HXAI CHIEF — Mission Control</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        colors: {
+          ink: '#080b13', panel: '#0e1421', line: 'rgba(148,163,184,.13)',
+          cyanx: '#56e6f5', violetx: '#9b8cff', mintx: '#6cf2c2'
+        },
+        fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] }
+      }}
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { background:#080b13; color:#e8edf8; font-family:Inter, sans-serif; }
+    .display { font-family:"Space Grotesk",sans-serif; }
+    .grid-bg {
+      background-image: linear-gradient(rgba(116,139,178,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(116,139,178,.045) 1px, transparent 1px);
+      background-size:34px 34px;
+      mask-image:linear-gradient(to bottom, black, transparent 92%);
+    }
+    .glass { background:linear-gradient(145deg,rgba(20,29,46,.92),rgba(12,17,29,.88)); border:1px solid rgba(148,163,184,.13); box-shadow:0 18px 55px rgba(0,0,0,.18); }
+    .soft-border { border:1px solid rgba(148,163,184,.12); }
+    .glow { box-shadow:0 0 24px rgba(86,230,245,.12), inset 0 0 20px rgba(86,230,245,.035); }
+    .nav-link { color:#8793aa; transition:.2s; }
+    .nav-link:hover,.nav-link.active { color:#eafaff; background:rgba(86,230,245,.075); border-color:rgba(86,230,245,.16); }
+    .nav-link.active { box-shadow:inset 2px 0 #56e6f5; }
+    .dot { width:7px;height:7px;border-radius:50%;display:inline-block;background:#69758b; }
+    .dot.cyan { background:#56e6f5; box-shadow:0 0 10px #56e6f5; }
+    .dot.green { background:#6cf2c2; box-shadow:0 0 10px #6cf2c2; }
+    .dot.amber { background:#f4c66a; box-shadow:0 0 10px #f4c66a; }
+    .agent-card { transition:transform .2s,border-color .2s,background .2s; }
+    .agent-card:hover { transform:translateY(-2px); border-color:rgba(86,230,245,.28); background:rgba(22,32,49,.96); }
+    .agent-avatar { background:linear-gradient(145deg,rgba(86,230,245,.16),rgba(155,140,255,.14)); border:1px solid rgba(86,230,245,.17); }
+    .track { height:5px;background:rgba(148,163,184,.12);border-radius:99px;overflow:hidden; }
+    .track > span { display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#56e6f5,#9b8cff); }
+    .orb { position:absolute;border-radius:999px;filter:blur(65px);opacity:.13;pointer-events:none; }
+    .network-wrap { background:radial-gradient(ellipse at center,rgba(46,99,132,.13),transparent 68%); }
+    #network { width:100%;height:100%;display:block; }
+    .pulse-ring { animation:pulse 2.8s ease-out infinite; }
+    @keyframes pulse { 0%{transform:scale(.8);opacity:.7} 100%{transform:scale(1.7);opacity:0} }
+    .scrollbar::-webkit-scrollbar { width:5px;height:5px; }
+    .scrollbar::-webkit-scrollbar-thumb { background:#273349;border-radius:10px; }
+    .toast { animation:toastIn .25s ease-out; }
+    @keyframes toastIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .mobile-overlay { background:rgba(0,0,0,.62);backdrop-filter:blur(4px); }
+    button:focus-visible,input:focus-visible { outline:2px solid #56e6f5;outline-offset:3px; }
+  </style>
+</head>
+<body class="min-h-screen overflow-x-hidden">
+  <div class="fixed inset-0 grid-bg pointer-events-none"></div>
+  <div class="orb w-72 h-72 bg-cyanx -top-28 left-1/3"></div>
+  <div class="orb w-80 h-80 bg-violetx top-1/2 -right-40"></div>
+
+  <div id="mobileOverlay" class="hidden fixed inset-0 z-40 mobile-overlay lg:hidden" onclick="closeSidebar()"></div>
+  <aside id="sidebar" class="fixed z-50 inset-y-0 left-0 w-[258px] bg-[#0a0f1a]/95 border-r border-white/[.08] backdrop-blur-2xl flex flex-col -translate-x-full lg:translate-x-0 transition-transform duration-300">
+    <div class="h-[82px] px-6 flex items-center gap-3 border-b border-white/[.07]">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyanx/25 to-violetx/25 border border-cyanx/25 flex items-center justify-center glow">
+        <i data-lucide="orbit" class="w-5 h-5 text-cyanx"></i>
+      </div>
+      <div>
+        <div class="display text-[17px] font-bold tracking-[.16em]">HXAI <span class="text-cyanx">CHIEF</span></div>
+        <div class="text-[9px] tracking-[.22em] text-slate-500 uppercase mt-0.5">Autonomous developer org</div>
+      </div>
+      <button class="lg:hidden ml-auto text-slate-400" onclick="closeSidebar()" aria-label="Close menu"><i data-lucide="x"></i></button>
+    </div>
+
+    <div class="px-4 pt-6 pb-2">
+      <div class="text-[10px] uppercase tracking-[.2em] text-slate-600 font-bold px-3 mb-3">Workspace</div>
+      <nav class="space-y-1">
+        <a href="#overview" class="nav-link active flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent text-sm" data-nav="overview"><i data-lucide="layout-dashboard" class="w-4 h-4"></i> Overview <span class="ml-auto text-[9px] text-cyanx">01</span></a>
+        <a href="#agents" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent text-sm" data-nav="agents"><i data-lucide="network" class="w-4 h-4"></i> Agent Network <span class="ml-auto text-xs text-slate-600">23</span></a>
+        <a href="#tasks" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent text-sm" data-nav="tasks"><i data-lucide="list-todo" class="w-4 h-4"></i> Task Queue</a>
+        <a href="#projects" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent text-sm" data-nav="projects"><i data-lucide="folder-kanban" class="w-4 h-4"></i> Projects</a>
+      </nav>
+    </div>
+
+    <div class="px-4 pt-6 pb-2">
+      <div class="text-[10px] uppercase tracking-[.2em] text-slate-600 font-bold px-3 mb-3">Intelligence</div>
+      <nav class="space-y-1">
+        <a href="#operations" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent text-sm" data-nav="operations"><i data-lucide="workflow" class="w-4 h-4"></i> Operations</a>
+        <a href="#models" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent text-sm" data-nav="models"><i data-lucide="cpu" class="w-4 h-4"></i> Model Connections</a>
+        <a href="#memory" class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent text-sm" data-nav="memory"><i data-lucide="brain" class="w-4 h-4"></i> Shared Memory</a>
+      </nav>
+    </div>
+
+    <div class="mt-auto p-4">
+      <div class="glass rounded-xl p-4">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-semibold text-slate-300">System integrity</span>
+          <span class="text-[9px] uppercase tracking-wider text-amber-300 border border-amber-300/20 bg-amber-300/5 px-2 py-1 rounded">Not connected</span>
+        </div>
+        <div class="flex items-center gap-2 text-[11px] text-slate-500"><span class="dot amber"></span> Backend connection required</div>
+        <div class="track mt-3"><span style="width:0%"></span></div>
+        <p class="text-[10px] text-slate-600 mt-2 leading-relaxed">Live health checks will appear after backend integration.</p>
+      </div>
+      <div class="flex items-center gap-2 px-2 pt-4 text-[10px] text-slate-600"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Secure workspace · Preview UI</div>
+    </div>
+  </aside>
+
+  <main class="relative z-10 lg:ml-[258px] min-h-screen">
+    <header class="h-[82px] sticky top-0 z-30 border-b border-white/[.07] bg-[#080b13]/80 backdrop-blur-xl px-4 sm:px-7 lg:px-9 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <button class="lg:hidden text-slate-300 p-2 rounded-lg hover:bg-white/5" onclick="openSidebar()" aria-label="Open menu"><i data-lucide="menu"></i></button>
+        <div>
+          <div class="text-[10px] uppercase tracking-[.2em] text-slate-600 hidden sm:block">HXAI / COMMAND CENTER</div>
+          <div class="display text-lg sm:text-xl font-semibold tracking-tight">Mission Control</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 sm:gap-4">
+        <div class="hidden md:flex items-center gap-2 rounded-full border border-amber-300/15 bg-amber-300/[.05] px-3 py-2 text-[11px] text-amber-200"><span class="dot amber"></span> Backend offline</div>
+        <button class="relative p-2.5 rounded-xl soft-border text-slate-400 hover:text-white hover:bg-white/5" onclick="notify('No new system notifications.')" aria-label="Notifications"><i data-lucide="bell" class="w-[17px] h-[17px]"></i><span class="absolute top-2 right-2 w-1.5 h-1.5 bg-cyanx rounded-full"></span></button>
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#263b54] to-[#282044] border border-white/10 flex items-center justify-center text-xs font-bold text-cyanx">HX</div>
+      </div>
+    </header>
+
+    <div class="max-w-[1600px] mx-auto px-4 sm:px-7 lg:px-9 py-7 space-y-7">
+      <section id="overview" class="scroll-mt-28">
+        <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-4 mb-6">
+          <div>
+            <div class="flex items-center gap-2 text-[10px] tracking-[.2em] uppercase text-cyanx mb-2"><span class="w-5 h-px bg-cyanx"></span> Infinity.Max.Ultra <span class="text-slate-700">/</span> Preview environment</div>
+            <h1 class="display text-3xl sm:text-[38px] leading-tight font-semibold">Command <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyanx to-violetx">Center.</span></h1>
+            <p class="text-sm text-slate-500 mt-2 max-w-2xl">Your AI developer organization, designed for coordinated research, engineering and verified delivery.</p>
+          </div>
+          <div class="flex items-center gap-2 text-xs text-slate-500"><i data-lucide="clock-3" class="w-4 h-4"></i><span id="clock">--:--:--</span><span class="text-slate-700">·</span><span>Local system time</span></div>
+        </div>
+
+        <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+          <div class="glass rounded-2xl p-4 sm:p-5">
+            <div class="flex items-center justify-between"><span class="text-xs text-slate-500">Total agents</span><span class="w-8 h-8 rounded-lg bg-cyanx/10 flex items-center justify-center"><i data-lucide="users" class="w-4 h-4 text-cyanx"></i></span></div>
+            <div class="display text-3xl font-semibold mt-3">23<span class="text-sm text-slate-600 font-normal ml-1">/ 23</span></div>
+            <div class="text-[10px] text-slate-600 mt-2">Roles defined in specification</div>
+          </div>
+          <div class="glass rounded-2xl p-4 sm:p-5">
+            <div class="flex items-center justify-between"><span class="text-xs text-slate-500">Active agents</span><span class="w-8 h-8 rounded-lg bg-amber-300/10 flex items-center justify-center"><i data-lucide="activity" class="w-4 h-4 text-amber-300"></i></span></div>
+            <div class="display text-3xl font-semibold mt-3">—</div>
+            <div class="text-[10px] text-amber-200/70 mt-2">Unknown · No live agent service</div>
+          </div>
+          <div class="glass rounded-2xl p-4 sm:p-5">
+            <div class="flex items-center justify-between"><span class="text-xs text-slate-500">Queued tasks</span><span class="w-8 h-8 rounded-lg bg-violetx/10 flex items-center justify-center"><i data-lucide="list-checks" class="w-4 h-4 text-violetx"></i></span></div>
+            <div class="display text-3xl font-semibold mt-3" id="queuedCount">0</div>
+            <div class="text-[10px] text-slate-600 mt-2">Local preview submissions only</div>
+          </div>
+          <div class="glass rounded-2xl p-4 sm:p-5">
+            <div class="flex items-center justify-between"><span class="text-xs text-slate-500">System status</span><span class="w-8 h-8 rounded-lg bg-rose-400/10 flex items-center justify-center"><i data-lucide="shield-alert" class="w-4 h-4 text-rose-300"></i></span></div>
+            <div class="display text-2xl font-semibold mt-3 text-amber-200">OFFLINE</div>
+            <div class="text-[10px] text-slate-600 mt-2">Awaiting backend integration</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid grid-cols-1 2xl:grid-cols-[1.55fr_1fr] gap-4">
+        <div class="glass rounded-2xl overflow-hidden">
+          <div class="px-5 sm:px-6 py-4 border-b border-white/[.07] flex items-center justify-between">
+            <div><div class="text-sm font-semibold">Neural command network</div><div class="text-[10px] text-slate-500 mt-1">Organization topology · Concept visualization</div></div>
+            <span class="text-[9px] uppercase tracking-wider text-slate-500 border border-white/10 rounded-full px-2.5 py-1">23 agent roles</span>
+          </div>
+          <div class="network-wrap relative h-[290px] sm:h-[340px]">
+            <canvas id="network" aria-label="Illustrative network diagram of the chief manager and agent roles"></canvas>
+            <div class="absolute bottom-4 left-5 flex flex-wrap gap-4 text-[10px] text-slate-500"><span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-cyanx"></span> Chief manager</span><span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-violetx"></span> Agent role</span><span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-slate-600"></span> Not connected</span></div>
+            <div class="absolute top-4 right-4 text-[9px] text-slate-600 tracking-widest uppercase">Illustrative · Not live</div>
+          </div>
+        </div>
+
+        <div class="glass rounded-2xl p-5 sm:p-6 flex flex-col">
+          <div class="flex items-center justify-between">
+            <div><div class="text-sm font-semibold">Chief AI Manager</div><div class="text-[10px] text-slate-500 mt-1">Central orchestration role</div></div>
+            <div class="w-10 h-10 rounded-xl agent-avatar flex items-center justify-center"><i data-lucide="brain-circuit" class="w-5 h-5 text-cyanx"></i></div>
+          </div>
+          <div class="mt-6 rounded-xl bg-[#080e19] border border-cyanx/10 p-4 relative overflow-hidden">
+            <div class="absolute -right-8 -top-10 w-32 h-32 rounded-full bg-cyanx/10 blur-3xl"></div>
+            <div class="relative flex items-center gap-3">
+              <div class="relative w-3 h-3"><span class="absolute inset-0 rounded-full bg-amber-300 pulse-ring"></span><span class="absolute inset-[3px] rounded-full bg-amber-300"></span></div>
+              <div><div class="text-xs font-semibold text-slate-200">Awaiting connection</div><div class="text-[10px] text-slate-500 mt-1">No orchestration service detected</div></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mt-5 relative">
+              <div><div class="text-[9px] text-slate-600 uppercase tracking-wider">Current task</div><div class="text-xs text-slate-400 mt-1">None reported</div></div>
+              <div><div class="text-[9px] text-slate-600 uppercase tracking-wider">Execution</div><div class="text-xs text-slate-400 mt-1">Unavailable</div></div>
+            </div>
+          </div>
+          <div class="mt-5 space-y-3">
+            <div class="flex justify-between text-xs"><span class="text-slate-500">Requirement analysis</span><span class="text-slate-600">Not started</span></div>
+            <div class="track"><span style="width:0%"></span></div>
+            <div class="flex justify-between text-xs"><span class="text-slate-500">Agent coordination</span><span class="text-slate-600">Not started</span></div>
+            <div class="track"><span style="width:0%"></span></div>
+            <div class="flex justify-between text-xs"><span class="text-slate-500">Independent validation</span><span class="text-slate-600">Not started</span></div>
+            <div class="track"><span style="width:0%"></span></div>
+          </div>
+          <div class="mt-auto pt-5 text-[10px] text-slate-600 flex items-center gap-2"><i data-lucide="info" class="w-3.5 h-3.5"></i> Progress will be populated by the real orchestration backend.</div>
+        </div>
+      </section>
+
+      <section id="agents" class="scroll-mt-28">
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-4">
+          <div><div class="text-sm font-semibold">Agent organization</div><p class="text-[11px] text-slate-500 mt-1">23 specialized roles defined · Runtime states are currently unknown</p></div>
+          <div class="flex gap-2">
+            <div class="relative"><i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"></i><input id="agentSearch" type="search" placeholder="Search agents..." class="w-40 sm:w-52 bg-[#0c1220] border border-white/10 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 placeholder:text-slate-600 focus:border-cyanx/40 outline-none"></div>
+            <select id="agentFilter" class="bg-[#0c1220] border border-white/10 rounded-lg px-3 py-2 text-xs text-slate-400 outline-none"><option value="all">All roles</option><option value="core">Core</option><option value="engineering">Engineering</option><option value="quality">Quality & Ops</option></select>
+          </div>
+        </div>
+        <div id="agentGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3"></div>
+      </section>
+
+      <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div id="tasks" class="glass rounded-2xl p-5 sm:p-6 scroll-mt-28">
+          <div class="flex items-center justify-between mb-5"><div><div class="text-sm font-semibold">Task queue</div><div class="text-[10px] text-slate-500 mt-1">Preview submissions on this page only</div></div><span class="text-[9px] text-violetx border border-violetx/20 bg-violetx/5 rounded-full px-2.5 py-1">LOCAL PREVIEW</span></div>
+          <div id="taskList" class="space-y-3">
+            <div id="emptyTasks" class="border border-dashed border-white/10 rounded-xl py-9 text-center"><i data-lucide="inbox" class="w-6 h-6 text-slate-600 mx-auto"></i><div class="text-xs text-slate-500 mt-3">No preview tasks submitted</div><div class="text-[10px] text-slate-700 mt-1">Use the command panel to add a local item</div></div>
+          </div>
+        </div>
+
+        <div id="operations" class="glass rounded-2xl p-5 sm:p-6 scroll-mt-28">
+          <div class="flex items-center justify-between mb-5"><div><div class="text-sm font-semibold">Autonomous operations</div><div class="text-[10px] text-slate-500 mt-1">Capability readiness overview</div></div><i data-lucide="workflow" class="w-4 h-4 text-cyanx"></i></div>
+          <div class="space-y-3">
+            <div class="flex items-center justify-between rounded-xl bg-white/[.025] border border-white/[.06] p-3.5"><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-lg bg-cyanx/10 flex items-center justify-center"><i data-lucide="ghost" class="w-4 h-4 text-cyanx"></i></div><div><div class="text-xs font-medium">Ghost Protocol</div><div class="text-[10px] text-slate-600 mt-1">Persistent background work</div></div></div><span class="text-[9px] text-amber-200 border border-amber-300/15 rounded-full px-2 py-1">NOT CONNECTED</span></div>
+            <div class="flex items-center justify-between rounded-xl bg-white/[.025] border border-white/[.06] p-3.5"><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-lg bg-violetx/10 flex items-center justify-center"><i data-lucide="git-branch" class="w-4 h-4 text-violetx"></i></div><div><div class="text-xs font-medium">Shadow Operations</div><div class="text-[10px] text-slate-600 mt-1">Parallel task coordination</div></div></div><span class="text-[9px] text-amber-200 border border-amber-300/15 rounded-full px-2 py-1">NOT CONNECTED</span></div>
+            <div class="flex items-center justify-between rounded-xl bg-white/[.025] border border-white/[.06] p-3.5"><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-lg bg-emerald-300/10 flex items-center justify-center"><i data-lucide="wifi" class="w-4 h-4 text-emerald-300"></i></div><div><div class="text-xs font-medium">Online intelligence</div><div class="text-[10px] text-slate-600 mt-1">Public research & documentation</div></div></div><span class="text-[9px] text-slate-400 border border-white/10 rounded-full px-2 py-1">UNAVAILABLE</span></div>
+            <div class="flex items-center justify-between rounded-xl bg-white/[.025] border border-white/[.06] p-3.5"><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-lg bg-amber-300/10 flex items-center justify-center"><i data-lucide="hard-drive" class="w-4 h-4 text-amber-200"></i></div><div><div class="text-xs font-medium">Offline intelligence</div><div class="text-[10px] text-slate-600 mt-1">Local models & workspace tools</div></div></div><span class="text-[9px] text-slate-400 border border-white/10 rounded-full px-2 py-1">UNAVAILABLE</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid grid-cols-1 xl:grid-cols-[1.2fr_.8fr] gap-4">
+        <div id="models" class="glass rounded-2xl p-5 sm:p-6 scroll-mt-28">
+          <div class="flex items-center justify-between mb-4"><div><div class="text-sm font-semibold">Model connection manager</div><div class="text-[10px] text-slate-500 mt-1">Provider integrations · No credentials configured</div></div><i data-lucide="cpu" class="w-4 h-4 text-cyanx"></i></div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="rounded-xl border border-white/[.07] bg-white/[.02] p-4"><div class="flex items-center justify-between"><span class="text-xs font-semibold">Ollama / Local</span><span class="dot"></span></div><div class="text-[10px] text-slate-600 mt-2">Local inference endpoint</div><div class="text-[10px] text-slate-500 mt-3">Connection: <span class="text-amber-200">Not tested</span></div></div>
+            <div class="rounded-xl border border-white/[.07] bg-white/[.02] p-4"><div class="flex items-center justify-between"><span class="text-xs font-semibold">OpenAI-compatible</span><span class="dot"></span></div><div class="text-[10px] text-slate-600 mt-2">Authorized API endpoint</div><div class="text-[10px] text-slate-500 mt-3">Connection: <span class="text-amber-200">Not configured</span></div></div>
+            <div class="rounded-xl border border-white/[.07] bg-white/[.02] p-4"><div class="flex items-center justify-between"><span class="text-xs font-semibold">Gemini-compatible</span><span class="dot"></span></div><div class="text-[10px] text-slate-600 mt-2">External model provider</div><div class="text-[10px] text-slate-500 mt-3">Connection: <span class="text-amber-200">Not configured</span></div></div>
+            <div class="rounded-xl border border-white/[.07] bg-white/[.02] p-4"><div class="flex items-center justify-between"><span class="text-xs font-semibold">Other providers</span><span class="dot"></span></div><div class="text-[10px] text-slate-600 mt-2">Modular provider adapters</div><div class="text-[10px] text-slate-500 mt-3">Connection: <span class="text-slate-500">Not configured</span></div></div>
+          </div>
+          <p class="text-[10px] text-slate-600 mt-4 flex items-center gap-2"><i data-lucide="lock" class="w-3 h-3"></i> API keys must be stored server-side, never in browser code.</p>
+        </div>
+
+        <div id="projects" class="glass rounded-2xl p-5 sm:p-6 scroll-mt-28">
+          <div class="flex items-center justify-between mb-4"><div><div class="text-sm font-semibold">Project workspace</div><div class="text-[10px] text-slate-500 mt-1">Project records not connected</div></div><i data-lucide="folder-kanban" class="w-4 h-4 text-violetx"></i></div>
+          <div class="rounded-xl border border-dashed border-white/10 p-6 text-center">
+            <div class="w-11 h-11 rounded-xl bg-violetx/10 mx-auto flex items-center justify-center"><i data-lucide="folders" class="w-5 h-5 text-violetx"></i></div>
+            <div class="text-xs font-medium mt-3">No projects loaded</div>
+            <p class="text-[10px] text-slate-600 mt-2 leading-relaxed">Connect a project database or workspace API to display real project files, checkpoints and build records.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="memory" class="glass rounded-2xl p-5 sm:p-6 scroll-mt-28">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-violetx/10 flex items-center justify-center"><i data-lucide="brain" class="w-5 h-5 text-violetx"></i></div><div><div class="text-sm font-semibold">Shared project memory</div><div class="text-[10px] text-slate-500 mt-1">Knowledge base · Version history · Recovery checkpoints</div></div></div>
+          <span class="text-[9px] text-amber-200 border border-amber-300/15 bg-amber-300/5 rounded-full px-3 py-1.5 self-start sm:self-auto">DATABASE NOT CONNECTED</span>
+        </div>
+      </section>
+
+      <section class="glass rounded-2xl p-5 sm:p-7 border-cyanx/15 relative overflow-hidden">
+        <div class="absolute -right-20 -top-28 w-72 h-72 rounded-full bg-cyanx/[.07] blur-3xl"></div>
+        <div class="relative">
+          <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div><div class="flex items-center gap-2 text-[10px] uppercase tracking-[.2em] text-cyanx"><i data-lucide="terminal" class="w-3.5 h-3.5"></i> Natural language interface</div><h2 class="display text-xl sm:text-2xl font-semibold mt-2">What should HXAI work on?</h2><p class="text-xs text-slate-500 mt-2">Enter a development request. This preview stores it locally in the page; it does not execute code or contact agents.</p></div>
+            <div class="text-[9px] text-amber-200 border border-amber-300/15 rounded-full px-3 py-1.5 self-start">BACKEND REQUIRED FOR EXECUTION</div>
+          </div>
+          <form id="commandForm" class="mt-5">
+            <div class="bg-[#080e19] border border-white/10 rounded-xl p-2 focus-within:border-cyanx/40 transition">
+              <textarea id="commandInput" rows="2" placeholder="e.g. Analyze my project architecture and prepare an implementation roadmap..." class="w-full bg-transparent resize-none outline-none px-3 py-2.5 text-sm text-slate-200 placeholder:text-slate-600"></textarea>
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-2 pb-1">
+                <div class="flex flex-wrap gap-2"><button type="button" class="suggestion text-[10px] text-slate-500 hover:text-cyanx border border-white/[.07] rounded-md px-2.5 py-1.5" data-prompt="Analyze the existing project and prepare an implementation roadmap.">Analyze project</button><button type="button" class="suggestion text-[10px] text-slate-500 hover:text-cyanx border border-white/[.07] rounded-md px-2.5 py-1.5" data-prompt="Create a website and outline its architecture.">Build a website</button><button type="button" class="suggestion text-[10px] text-slate-500 hover:text-cyanx border border-white/[.07] rounded-md px-2.5 py-1.5" data-prompt="Run a complete project testing plan.">Plan testing</button></div>
+                <button type="submit" class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-cyanx to-[#80c7ff] text-[#07111a] font-bold text-xs rounded-lg px-5 py-2.5 hover:brightness-110 transition"><i data-lucide="send" class="w-3.5 h-3.5"></i> Add preview task</button>
+              </div>
+            </div>
+          </form>
+          <div class="mt-3 flex items-center gap-2 text-[10px] text-slate-600"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i> No external API calls · No code execution · No credentials requested</div>
+        </div>
+      </section>
+
+      <footer class="py-2 flex flex-col sm:flex-row items-center justify-between gap-2 text-[10px] text-slate-700">
+        <span>HXAI CHIEF AI MANAGER <span class="text-slate-600">·</span> Infinity.Max.Ultra</span>
+        <span>Frontend preview · Backend integrations pending</span>
+      </footer>
+    </div>
+  </main>
+
+  <div id="toastHost" class="fixed z-[80] bottom-5 right-5 space-y-2 max-w-[calc(100vw-40px)]"></div>
+
+  <script>
+    const agents = [
+      ['01','Chief AI Manager','Central orchestration and delivery coordination','core','brain-circuit'],
+      ['02','System Architect','System structure, architecture and technical decisions','core','blocks'],
+      ['03','Research Agent','Technology research and technical investigation','core','search'],
+      ['04','Requirements Analyst','Requirements discovery and specification','core','clipboard-list'],
+      ['05','UI/UX Designer','User experience, interface design and prototypes','engineering','palette'],
+      ['06','Frontend Developer','Web interfaces and client-side engineering','engineering','panels-top-left'],
+      ['07','Backend Developer','Server logic, services and application APIs','engineering','server'],
+      ['08','Mobile Developer','Android and iOS application development','engineering','smartphone'],
+      ['09','Desktop Developer','Desktop application engineering','engineering','monitor'],
+      ['10','Database Engineer','Data models, storage and database systems','engineering','database'],
+      ['11','API Integration Engineer','External services and API integrations','engineering','plug'],
+      ['12','AI/ML Engineer','AI models, machine learning and inference','engineering','bot'],
+      ['13','Automation Engineer','Workflow automation and task execution','engineering','workflow'],
+      ['14','Cybersecurity Engineer','Security architecture and vulnerability checks','quality','shield-check'],
+      ['15','Code Review Engineer','Code quality and maintainability review','quality','scan-eye'],
+      ['16','QA Testing Engineer','Functional, regression and acceptance testing','quality','test-tube'],
+      ['17','Debugging Engineer','Fault analysis and issue resolution','quality','bug'],
+      ['18','Performance Engineer','Performance profiling and optimization','quality','gauge'],
+      ['19','DevOps Engineer','Build pipelines, deployment and infrastructure','quality','cloud'],
+      ['20','Documentation Engineer','Technical documentation and user guides','quality','book-open'],
+      ['21','Integration Engineer','Cross-module and system integration','quality','workflow'],
+      ['22','Monitoring & Recovery Agent','Health monitoring and controlled recovery','quality','activity'],
+      ['23','Independent Validation Agent','Independent verification and final validation','quality','badge-check']
+    ];
+
+    const grid = document.getElementById('agentGrid');
+    function renderAgents() {
+      const q = document.getElementById('agentSearch').value.toLowerCase();
+      const filter = document.getElementById('agentFilter').value;
+      const shown = agents.filter(a => (filter === 'all' || a[3] === filter) && (a[1]+' '+a[2]+' '+a[0]).toLowerCase().includes(q));
+      grid.innerHTML = shown.map(a => `
+        <article class="agent-card glass rounded-xl p-4 soft-border">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="agent-avatar w-10 h-10 rounded-xl flex items-center justify-center shrink-0"><i data-lucide="${a[4]}" class="w-[17px] h-[17px] text-cyanx"></i></div>
+              <div class="min-w-0"><div class="text-[9px] text-slate-600 tracking-widest">AGENT ${a[0]}</div><div class="text-xs font-semibold text-slate-200 mt-1 truncate">${a[1]}</div></div>
+            </div>
+            <span class="text-[9px] text-slate-500 border border-white/[.08] rounded-full px-2 py-1 shrink-0">UNKNOWN</span>
+          </div>
+          <p class="text-[10px] leading-relaxed text-slate-500 mt-3 min-h-[30px]">${a[2]}</p>
+          <div class="flex items-center justify-between mt-3 pt-3 border-t border-white/[.06]"><span class="text-[9px] uppercase tracking-wider text-slate-600">${a[3] === 'core' ? 'Leadership' : a[3] === 'engineering' ? 'Engineering' : 'Quality & Ops'}</span><span class="flex items-center gap-1.5 text-[9px] text-slate-600"><span class="dot"></span> No runtime data</span></div>
+        </article>`).join('');
+      if (!shown.length) grid.innerHTML = '<div class="col-span-full text-center py-10 text-xs text-slate-600">No matching agent roles.</div>';
+      lucide.createIcons();
+    }
+    document.getElementById('agentSearch').addEventListener('input', renderAgents);
+    document.getElementById('agentFilter').addEventListener('change', renderAgents);
+    renderAgents();
+
+    let tasks = [];
+    const form = document.getElementById('commandForm');
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const input = document.getElementById('commandInput');
+      const value = input.value.trim();
+      if (!value) { notify('Please enter a task description.'); return; }
+      const id = 'HX-' + String(Date.now()).slice(-6);
+      tasks.unshift({id, value, time:new Date()});
+      input.value = '';
+      renderTasks();
+      notify('Added to this page preview. No agent has been assigned.');
+    });
+    function renderTasks() {
+      document.getElementById('queuedCount').textContent = tasks.length;
+      const list = document.getElementById('taskList');
+      if (!tasks.length) {
+        list.innerHTML = '<div class="border border-dashed border-white/10 rounded-xl py-9 text-center"><i data-lucide="inbox" class="w-6 h-6 text-slate-600 mx-auto"></i><div class="text-xs text-slate-500 mt-3">No preview tasks submitted</div><div class="text-[10px] text-slate-700 mt-1">Use the command panel to add a local item</div></div>';
+      } else {
+        list.innerHTML = tasks.map(t => `<div class="rounded-xl border border-white/[.07] bg-white/[.025] p-3.5"><div class="flex items-center justify-between gap-2"><span class="text-[9px] tracking-wider text-cyanx">${t.id}</span><span class="text-[9px] text-amber-200 border border-amber-300/15 rounded-full px-2 py-1">LOCAL ONLY</span></div><p class="text-xs text-slate-300 mt-2 leading-relaxed break-words">${escapeHtml(t.value)}</p><div class="flex items-center justify-between mt-3 text-[9px] text-slate-600"><span>Not sent to backend</span><span>${t.time.toLocaleTimeString()}</span></div></div>`).join('');
+      }
+      lucide.createIcons();
+    }
+    function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    document.querySelectorAll('.suggestion').forEach(b => b.addEventListener('click', () => { document.getElementById('commandInput').value = b.dataset.prompt; document.getElementById('commandInput').focus(); }));
+
+    function notify(message) {
+      const host = document.getElementById('toastHost');
+      const el = document.createElement('div');
+      el.className = 'toast glass rounded-xl px-4 py-3 text-xs text-slate-200 flex items-start gap-2';
+      el.innerHTML = '<i data-lucide="info" class="w-4 h-4 text-cyanx shrink-0"></i><span></span>';
+      el.querySelector('span').textContent = message;
+      host.appendChild(el); lucide.createIcons();
+      setTimeout(() => el.remove(), 3600);
+    }
+    function openSidebar(){document.getElementById('sidebar').classList.remove('-translate-x-full');document.getElementById('mobileOverlay').classList.remove('hidden');}
+    function closeSidebar(){document.getElementById('sidebar').classList.add('-translate-x-full');document.getElementById('mobileOverlay').classList.add('hidden');}
+    document.querySelectorAll('[data-nav]').forEach(link => link.addEventListener('click', () => {
+      document.querySelectorAll('[data-nav]').forEach(x => x.classList.remove('active'));
+      link.classList.add('active'); closeSidebar();
+    }));
+
+    function updateClock(){document.getElementById('clock').textContent = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+    updateClock(); setInterval(updateClock,1000);
+
+    // Decorative topology illustration only; it does not represent live agent connections.
+    const canvas = document.getElementById('network'), ctx = canvas.getContext('2d');
+    let nodes = [], w = 0, h = 0, raf;
+    function setupNetwork() {
+      const rect = canvas.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
+      w = rect.width; h = rect.height; canvas.width = w*dpr; canvas.height = h*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+      const cx=w/2, cy=h/2; nodes=[];
+      for(let i=0;i<23;i++){const angle=(Math.PI*2*i/23)-Math.PI/2;const rx=Math.min(w*.38,260), ry=Math.min(h*.38,130);nodes.push({x:cx+Math.cos(angle)*rx,y:cy+Math.sin(angle)*ry,phase:Math.random()*6.28,r:2.1+Math.random()*1.2});}
+      drawNetwork();
+    }
+    let tick=0;
+    function drawNetwork(){
+      ctx.clearRect(0,0,w,h); tick+=.008;
+      const cx=w/2, cy=h/2;
+      // faint orbital rings
+      [0.35,0.68,1].forEach((s,i)=>{ctx.beginPath();ctx.ellipse(cx,cy,Math.min(w*.38,260)*s,Math.min(h*.38,130)*s,0,0,Math.PI*2);ctx.strokeStyle='rgba(110,145,180,'+(0.055-i*.012)+')';ctx.lineWidth=1;ctx.stroke();});
+      nodes.forEach((n,i)=>{
+        ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(n.x,n.y);ctx.strokeStyle='rgba(117,145,183,.20)';ctx.lineWidth=.8;ctx.stroke();
+        const pulse=(Math.sin(tick*2+n.phase)+1)/2;
+        ctx.beginPath();ctx.arc(n.x,n.y,n.r+pulse*1.1,0,Math.PI*2);ctx.fillStyle='rgba(155,140,255,'+(.55+pulse*.35)+')';ctx.fill();
+        ctx.beginPath();ctx.arc(n.x,n.y,7+pulse*4,0,Math.PI*2);ctx.strokeStyle='rgba(155,140,255,'+(.08+pulse*.07)+')';ctx.stroke();
+      });
+      // chief core
+      const glow=ctx.createRadialGradient(cx,cy,4,cx,cy,48);glow.addColorStop(0,'rgba(86,230,245,.22)');glow.addColorStop(1,'rgba(86,230,245,0)');
+      ctx.fillStyle=glow;ctx.beginPath();ctx.arc(cx,cy,48,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(cx,cy,21,0,Math.PI*2);ctx.fillStyle='#102536';ctx.fill();ctx.strokeStyle='rgba(86,230,245,.8)';ctx.lineWidth=1.3;ctx.stroke();
+      ctx.beginPath();ctx.arc(cx,cy,14,0,Math.PI*2);ctx.fillStyle='rgba(86,230,245,.13)';ctx.fill();
+      ctx.fillStyle='#8ef4ff';ctx.font='bold 9px Inter';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('HX',cx,cy);
+      raf=requestAnimationFrame(drawNetwork);
+    }
+    const resizeObserver = new ResizeObserver(setupNetwork);
+    resizeObserver.observe(canvas.parentElement);
+    setupNetwork();
+    lucide.createIcons();
+  </script>
+</body>
+</html>
